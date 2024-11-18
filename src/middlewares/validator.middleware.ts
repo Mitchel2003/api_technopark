@@ -1,0 +1,16 @@
+import { Request, Response, NextFunction } from "express"
+import { send } from "@/interfaces/api.interface"
+import { ZodType, ZodError } from "zod"
+
+const validateSchema = (schema: ZodType) => (req: Request, res: Response, next: NextFunction) => {
+  try {
+    schema.parse(req.body)
+    next()
+  } catch (e: unknown) {
+    //TODO: Esta implementacion de error es buena porque porque me retorna X cantidad de errores (Tener en cuenta)
+    if (e instanceof ZodError) return send(res, 400, e.errors.map(error => error.message))
+    send(res, 500, `Error interno del servidor al validar el esquema: ${e}`)
+  }
+}
+
+export default validateSchema
