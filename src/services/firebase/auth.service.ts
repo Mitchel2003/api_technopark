@@ -1,4 +1,4 @@
-import { AuthService as IAuth, UserCredentialsDB } from "@/interfaces/db.interface"
+import { AuthService as IAuth } from "@/interfaces/db.interface"
 import { handlerService as handler } from "@/errors/handler"
 import { Result } from "@/interfaces/api.interface"
 import config from "@/utils/config"
@@ -70,12 +70,11 @@ class AuthService implements IAuth {
   /**
    * Envia un correo de verificación de cuenta al correo suministrado por el usuario.
    * El enlace de redireccion (url) lo definimos en el metodo dado que necesitamos las credenciales del usuario a crear en mongodb.
-   * @param {UserCredentialsDB} user - Credenciales del usuario.
    */
-  async sendEmailVerification({ email, username, role }: UserCredentialsDB): Promise<Result<void>> {
+  async sendEmailVerification(): Promise<Result<void>> {
     return handler(async () => {
       if (!this.auth.currentUser) throw new NotFound({ message: 'Usuario (auth)' })
-      const url = `${config.frontendUrl}/auth/verify-action/email=${email}&username=${username}&role=${role}`
+      const url = `${config.frontendUrl}/auth/verify-action`
       await sendEmailVerification(this.auth.currentUser, { url })
     }, 'enviar correo de verificación')
   }
@@ -100,9 +99,11 @@ class AuthService implements IAuth {
    * Este metodo de vericacion usa credenciales del usuario autenticado;
    * Utilizamos photoURL para manejar el estado de verificacion de email.
    */
-  async validateEmailVerification(): Promise<void> {
-    if (!this.auth.currentUser) throw new NotFound({ message: 'Usuario (auth)' })
-    await this.updateProfile(this.auth.currentUser, { photoURL: 'authenticated' })
+  async validateEmailVerification(): Promise<Result<void>> {
+    return handler(async () => {
+      if (!this.auth.currentUser) throw new NotFound({ message: 'Usuario (auth)' })
+      await this.updateProfile(this.auth.currentUser, { photoURL: 'authenticated' })
+    }, 'validar verificación de correo electrónico')
   }
 
 }

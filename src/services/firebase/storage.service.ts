@@ -60,7 +60,7 @@ class StorageService implements IStorage {
    */
   async uploadFile(path: string, file: File): Promise<Result<string>> {
     return handler(async () => {
-      const storageRef = this.getReference(path)
+      const storageRef = this.getReference(`technopark/company/${path}`)
       const metadata = buildStorageMetadata(file)
       const upload = await uploadBytes(storageRef, file, metadata)
       return await getDownloadURL(upload.ref)

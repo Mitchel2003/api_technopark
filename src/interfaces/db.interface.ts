@@ -3,9 +3,12 @@ import { UserCredential } from "firebase/auth";
 
 /*--------------------------------------------------Firebase--------------------------------------------------*/
 export interface UserCredentialsDB {
+  photo: string;
+  phone: string;
   email: string;
   username: string;
-  role: string;
+  description: string;
+  socialNetworks: string[];
 }
 
 export interface AuthService {
@@ -17,7 +20,7 @@ export interface AuthService {
   sendEmailVerification(user: UserCredentialsDB): Promise<Result<void>>
   sendEmailResetPassword(email: string): Promise<Result<void>>
   validateResetPassword(oobCode: string, newPassword: string): Promise<Result<void>>
-  validateEmailVerification(): Promise<void>
+  validateEmailVerification(): Promise<Result<void>>  
 }
 
 export interface StorageService {

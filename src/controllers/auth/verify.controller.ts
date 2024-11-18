@@ -1,23 +1,22 @@
-import { userService as userService } from "@/services/mongodb/user/user.service"
 import { authService as authFB } from "@/services/firebase/auth.service"
-
-import { ExtendsRequest, send } from "@/interfaces/api.interface"
 import { handlerResponse } from "@/errors/handler"
+import { send } from "@/interfaces/api.interface"
 import ErrorAPI from "@/errors"
 
-import { Response, Request } from "express"
+import { Request, Response } from "express"
+
 /**
  * Verifica el token de acceso del usuario (autenticación).
  * Extrae las credenciales del token (id_user), en caso de que token sea invalido, no se permitirá el acceso.
- * @param {ExtendsRequest} req - Objeto de solicitud Express extendido. Debe contener el token en token.
  * @returns {Promise<void>} - Envía los datos del usuario autenticado o un mensaje de error.
  */
-export const verifyAuth = async (req: ExtendsRequest, res: Response): Promise<void> => {
+export const verifyAuth = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = await userService.findById(req.user?.id as string);
-    if (!user.success) throw new ErrorAPI(user.error);
-    send(res, 200, user.data);
-  } catch (e) { handlerResponse(res, e, "verificar token autenticación") }
+    const user = await authFB.verifyCredentials(req.body.token, '');
+    if (user.success) return send(res, 400, { data: false })
+    if (user.error.message === 'Credenciales inválidas') return send(res, 200, { data: true })
+    return send(res, 400, { data: false })
+  } catch (e) { handlerResponse(res, e, 'verificar autenticación') }
 }
 
 /**
@@ -32,14 +31,13 @@ export const verifyAuth = async (req: ExtendsRequest, res: Response): Promise<vo
  */
 export const verifyAction = async ({ body, params }: Request, res: Response): Promise<void> => {
   try {
-    if (!params.mode) return;
-    const result = params.mode !== 'verifyEmail'
-      ? await authFB.validateResetPassword(body.oobCode, body.password)
-      : await authFB.validateEmailVerification().then(() => userService.create(body))
+    const result = params.mode === 'verifyEmail'
+      ? await authFB.validateEmailVerification()
+      : await authFB.validateResetPassword(body.oobCode, body.password)
     //send response
     if (!result.success) throw new ErrorAPI(result.error);
-    send(res, 200, result.data);
-  } catch (e) { handlerResponse(res, e, "verificar acción") }
+    return send(res, 200, { data: 'acción completada' })
+  } catch (e) { handlerResponse(res, e, 'verificar acción') }
 }
 
 /*--------------------------------------------------ResetPassword--------------------------------------------------*/
@@ -47,29 +45,27 @@ export const verifyAction = async ({ body, params }: Request, res: Response): Pr
  * Maneja el proceso de restablecimiento de contraseña.
  * Establece un token de restablecimiento de contraseña para el usuario
  * Envia un email con el token de restablecimiento de contraseña el cual expirará en 1 hora.
- * @param {Request} req - Objeto de solicitud Express. Debe contener el email en el body.
  * @returns {Promise<void>} - Envía un mensaje de éxito si el email se envía correctamente.
  */
-export const forgotPassword = async ({ body }: Request, res: Response): Promise<void> => {
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await authFB.sendEmailResetPassword(body.email);
+    const result = await authFB.sendEmailResetPassword(req.body.email);
     if (!result.success) throw new ErrorAPI(result.error);
-    send(res, 200, 'Email enviado correctamente');
-  } catch (e) { handlerResponse(res, e, "enviar email de restablecimiento de contraseña") }
+    return send(res, 200, { data: 'correo de restablecimiento enviado' })
+  } catch (e) { handlerResponse(res, e, 'envio de correo de restablecimiento de contraseña') }
 }
 
 /**
  * Nos permite actualizar la contraseña del usuario.
  * Valida un token y su respectiva expiración.
  * Envia un email de éxito si la contraseña se actualiza correctamente.
- * @param {Request} req - Objeto de solicitud Express. Debe contener el token en los params y la nueva contraseña en el body.
  * @returns {Promise<void>} - Envía un mensaje de éxito si la contraseña se actualiza correctamente, caso contrario un mensaje de error.
  */
 export const resetPassword = async ({ params, body }: Request, res: Response): Promise<void> => {
   try {
     const result = await authFB.validateResetPassword(params.oobCode, body.password);
     if (!result.success) throw new ErrorAPI(result.error);
-    send(res, 200, 'Contraseña restablecida correctamente');
-  } catch (e) { handlerResponse(res, e, "restablecer contraseña") }
+    return send(res, 200, { data: 'Contraseña restablecida correctamente' })
+  } catch (e) { handlerResponse(res, e, 'validar restablecimiento de contraseña') }
 }
 /*---------------------------------------------------------------------------------------------------------*/
